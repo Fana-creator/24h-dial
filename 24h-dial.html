@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>24h ダイヤル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 計器盤のような24時間ダイヤルを主役に、右（スマホでは下）に設定パネル */
+:root{
+  --bg:#e9edf1; --panel:#ffffff; --ink:#18212c; --muted:#5b6777; --line:#cbd3dc;
+  --face:#f7f9fb; --accent:#c98a00; --accent-ink:#1a1400; --danger:#c0392b;
+  --f-disp:"Oxanium","Zen Kaku Gothic New",system-ui,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --panel:#18202a; --ink:#e4e9ef; --muted:#93a0b0; --line:#2b3542;
+  --face:#141b23; --accent:#f2b829; --accent-ink:#1a1400; --danger:#ff6b5b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --panel:#18202a; --ink:#e4e9ef; --muted:#93a0b0; --line:#2b3542;
+  --face:#141b23; --accent:#f2b829; --accent-ink:#1a1400; --danger:#ff6b5b; color-scheme:dark}
+html,body{height:100%}
+body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;padding:16px;padding-block:16px;box-sizing:border-box}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}}
+header.top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-disp);font-weight:700;font-size:1.35rem;letter-spacing:.06em;margin:0;display:flex;align-items:baseline;gap:10px}
+h1 small{font-family:var(--f-body);font-weight:500;font-size:.8rem;color:var(--muted);letter-spacing:.02em}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;font-size:.88rem}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.danger{color:var(--danger)}
+.btn.warn{background:var(--danger);border-color:var(--danger);color:#fff}
+.dialwrap{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+svg#dial{width:100%;max-width:640px;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+svg#dial.dragging .ev{cursor:grabbing}
+.ev.clash{stroke:var(--danger);stroke-width:3;stroke-dasharray:6 4}
+.ev.active{stroke:var(--ink);stroke-width:3}
+.hdl{cursor:ew-resize}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}
+.qchip{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:.88rem}
+.qchip:hover,.qchip:focus-visible{border-color:var(--accent);background:var(--face)}
+.qchip i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.g-hover .hdl{opacity:0;transition:opacity .15s}
+.g-hover .evg:hover .hdl,.g-hover .evg.on .hdl{opacity:1}
+.looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.look{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.75rem;color:var(--muted);text-align:center}
+.look svg{width:100%;height:auto;display:block}
+.look[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;color:var(--ink);font-weight:700}
+.look:hover,.look:focus-visible{border-color:var(--muted)}
+.chip{font-size:.7rem;font-weight:700;color:var(--danger);border:1px solid var(--danger);border-radius:99px;padding:0 6px;margin-left:6px}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choice{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.choice:hover,.choice:focus-visible{border-color:var(--accent);background:var(--face)}
+.choice b{font-size:.95rem}
+.choice span{font-size:.8rem;color:var(--muted)}
+.preview-note{font-size:.85rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel h2{font-size:.78rem;letter-spacing:.12em;color:var(--muted);margin:0 0 8px;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+select,input[type=text],textarea{background:var(--face);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.evlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:320px;overflow:auto}
+.evlist button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:12px 108px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:6px 8px;border-radius:6px}
+.evlist button:hover,.evlist button:focus-visible{background:var(--face)}
+.evlist .dot{width:12px;height:12px;border-radius:3px}
+.evlist .t{font-family:var(--f-disp);font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--muted)}
+.evlist .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evlist .a{font-size:.75rem;color:var(--muted)}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.week label{display:flex;flex-direction:column;gap:2px;font-size:.78rem;color:var(--muted);text-align:center}
+.week select{padding:4px 2px;font-size:.78rem;width:100%}
+.note{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
+textarea{width:100%;min-height:90px;font-family:monospace;font-size:.75rem;margin-top:8px}
+.sample{font-size:.72rem;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--muted)}
+/* dial parts */
+.slot{fill:transparent;cursor:pointer}
+.slot:hover{fill:var(--line);opacity:.55}
+.ev{cursor:pointer;stroke:var(--face);stroke-width:1.5}
+.ev:hover{filter:brightness(1.08)}
+.evlabel{font-family:var(--f-body);font-weight:700;font-size:13px;fill:#10161d;pointer-events:none}
+.hnum{font-family:var(--f-disp);font-size:15px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.hnum.major{fill:var(--ink);font-weight:700;font-size:17px}
+.clock{font-family:var(--f-disp);font-weight:600;fill:var(--ink);font-variant-numeric:tabular-nums}
+.sub{font-family:var(--f-body);fill:var(--muted)}
+.cd{font-family:var(--f-disp);font-weight:700;fill:var(--accent);font-variant-numeric:tabular-nums}
+/* focus (拡大) mode */
+body.focus .panel, body.focus header.top .hide-in-focus{display:none}
+body.focus .app{grid-template-columns:minmax(0,1fr);max-width:none}
+body.focus .note.hide-in-focus,body.focus .preview-note{display:none}
+svg#zoom{width:100%;max-width:640px;height:auto;display:block;user-select:none}
+body.focus svg#zoom,body.focus svg#dial{max-width:min(96vw,calc(100vh - 130px))}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;padding:3px;background:var(--panel);gap:2px}
+.seg button{all:unset;cursor:pointer;padding:5px 14px;border-radius:7px;font-size:.88rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.seg button:hover{color:var(--ink)}
+.seg button:focus-visible{outline:2px solid var(--accent)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+.zoomctl{justify-content:center}
+.zoomctl .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.zt{font-family:var(--f-disp);font-variant-numeric:tabular-nums;fill:var(--muted);font-size:14px}
+.zt.q{fill:var(--ink);font-weight:700;font-size:16px}
+.zlabel{font-family:var(--f-body);font-weight:700;font-size:15px;fill:#10161d;pointer-events:none}
+.zsub{font-family:var(--f-disp);font-size:12.5px;fill:#10161d;opacity:.8;pointer-events:none;font-variant-numeric:tabular-nums}
+/* overlay editor */
+.overlay{position:fixed;inset:0;background:rgba(10,14,20,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:min(440px,100%);display:flex;flex-direction:column;gap:12px}
+.sheet h3{margin:0;font-size:1rem}
+.sheet label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted)}
+.sheet input[type=text]{font-size:1rem;color:var(--ink)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatches input{appearance:none;width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;margin:0}
+.swatches input:checked{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel) inset}
+.err{color:var(--danger);font-size:.82rem;min-height:1.2em;margin:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:10px;font-weight:700;z-index:20;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion:no-preference){.toast{animation:pop .25s ease-out}@keyframes pop{from{transform:translate(-50%,10px);opacity:0}}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <h1>24h DIAL <small>円形スケジュール</small></h1>
+    <div class="row">
+      <button class="btn hide-in-focus" id="notifBtn" type="button">デスクトップ通知を有効にする</button>
+      <button class="btn primary" id="focusBtn" type="button">拡大表示</button>
+    </div>
+  </header>
+
+  <div class="dialwrap">
+    <div class="seg" id="zoomCtl" role="group" aria-label="ダイヤルの表示範囲">
+      <button type="button" data-w="1440">24時間</button>
+      <button type="button" data-w="180">3時間</button>
+      <button type="button" data-w="60">1時間</button>
+      <button type="button" data-w="30">30分</button>
+    </div>
+    <svg id="dial" viewBox="0 0 640 640" role="img" aria-label="24時間スケジュールのダイヤル"></svg>
+    <svg id="zoom" viewBox="0 0 640 640" role="img" aria-label="現在時刻を中心にした分刻みのダイヤル" hidden></svg>
+    <div class="preview-note" id="previewNote" hidden></div>
+    <p class="note hide-in-focus" id="dialNote" style="text-align:center"></p>
+  </div>
+
+  <aside class="panel">
+    <section>
+      <h2>今日使う設定</h2>
+      <div class="row">
+        <select id="setSel" aria-label="設定を選ぶ"></select>
+        <button class="btn" id="newSet" type="button">新規</button>
+        <button class="btn" id="dupSet" type="button">複製</button>
+        <button class="btn" id="renSet" type="button">名前変更</button>
+        <button class="btn danger" id="delSet" type="button">削除</button>
+      </div>
+      <div class="row" id="renameRow" hidden style="margin-top:8px">
+        <input type="text" id="renameInput" aria-label="新しい名前">
+        <button class="btn primary" id="renameOk" type="button">保存</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">予定</h2><button class="btn" id="addEv" type="button">＋ 予定を追加</button></div>
+      <ul class="evlist" id="evlist"></ul>
+    </section>
+
+    <section>
+      <h2>曜日ごとの割り当て</h2>
+      <div class="week" id="week"></div>
+      <p class="note">毎日この割り当てで自動的に切り替わります。上で別の設定を選ぶと、今日だけそちらを使います。</p>
+    </section>
+
+    <section>
+      <h2>つまみのデザイン</h2>
+      <div class="looks" id="looks" role="group" aria-label="つまみのデザイン"></div>
+      <label class="row" style="margin-top:10px;font-size:.85rem"><input type="checkbox" id="roundChk"> 予定の帯の角を丸くする</label>
+    </section>
+
+    <section>
+      <h2>通知</h2>
+      <p class="note" id="notifStatus" style="margin:0"></p>
+    </section>
+
+    <details>
+      <summary>バックアップ（書き出し・読み込み）</summary>
+      <textarea id="backup" aria-label="バックアップ用データ" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="copyBk" type="button">コピー</button>
+        <button class="btn" id="importBk" type="button">貼り付けた内容を読み込む</button>
+      </div>
+      <p class="note">データはこのブラウザ内に保存されます。別の端末に移すときや念のための控えに使ってください。</p>
+    </details>
+  </aside>
+</div>
+
+<div class="overlay" id="editor" hidden>
+  <form class="sheet" id="evForm">
+    <h3 id="edTitle">予定を追加</h3>
+    <label>名前<input type="text" id="fTitle" required maxlength="30"></label>
+    <div class="row">
+      <label style="flex:1">開始<select id="fStart"></select></label>
+      <label style="flex:1">終了<select id="fEnd"></select></label>
+    </div>
+    <label>アラート<select id="fLead">
+      <option value="-1">なし</option><option value="0">開始時のみ</option>
+      <option value="5">5分前と開始時</option><option value="10">10分前と開始時</option>
+      <option value="15">15分前と開始時</option><option value="30">30分前と開始時</option>
+    </select></label>
+    <div><div style="font-size:.82rem;color:var(--muted);margin-bottom:4px">色</div><div class="swatches" id="fColors"></div></div>
+    <p class="err" id="fErr"></p>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn danger" id="fDel" type="button">削除</button>
+      <div class="row">
+        <button class="btn" id="fCancel" type="button">キャンセル</button>
+        <button class="btn primary" type="submit">保存</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="overlay" id="quick" hidden>
+  <form class="sheet" id="qForm">
+    <h3>何の予定ですか？</h3>
+    <div class="row" style="justify-content:space-between">
+      <span id="qTime" style="font-family:var(--f-disp);font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums"></span>
+      <span class="row" style="gap:4px"><button class="btn" type="button" id="qMinus" aria-label="15分短く">−15分</button><button class="btn" type="button" id="qPlus" aria-label="15分長く">＋15分</button></span>
+    </div>
+    <input type="text" id="qTitle" maxlength="30" placeholder="例: 作画、打ち合わせ" aria-label="予定の名前" style="font-size:1.05rem;color:var(--ink)">
+    <div class="qchips" id="qChips"></div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn" type="button" id="qMore">詳しく設定</button>
+      <div class="row"><button class="btn" type="button" id="qCancel">キャンセル</button><button class="btn primary" type="submit">追加</button></div>
+    </div>
+  </form>
+</div>
+<div class="overlay" id="resolver" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="rsTitle">
+    <h3 id="rsTitle">予定が重なっています</h3>
+    <p class="note" id="rsMsg" style="margin:0"></p>
+    <div class="choices">
+      <button class="choice" type="button" data-act="shift"><b>重なった予定を後ろにずらす</b><span>後ろの予定は長さそのままで押し出し、前から続く予定はこの予定の開始で終わらせます</span></button>
+      <button class="choice" type="button" data-act="trim"><b>重なった部分を削る</b><span>この予定を優先し、他の予定の重なった時間だけを削ります</span></button>
+      <button class="choice" type="button" data-act="keep"><b>このまま重ねて置く</b><span>両方残します。ダイヤルには赤い点線で表示されます</span></button>
+      <button class="choice" type="button" data-act="undo"><b>変更を取り消す</b><span>変更する前の状態に戻します</span></button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const COLORS=['#f2b829','#6fc3a8','#7fb0ea','#e98a7a','#b79de6','#9ccf6a','#f0a35e','#b8c2cc'];
+const DAYS=['日','月','火','水','木','金','土'];
+const KEY='dial24.v1';
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+const fmt=m=>m===1440?'24:00':pad(Math.floor(((m%1440)+1440)%1440/60))+':'+pad(((m%1440)+1440)%1440%60);
+const dur=e=>(((e.end-e.start)%1440)+1440)%1440||1440;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const todayStr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+
+function sample(){
+  const w=uid(),h=uid();
+  const ev=(title,s,e,c,lead=5)=>({id:uid(),title,start:s,end:e,color:COLORS[c],lead});
+  return {sets:[
+    {id:w,name:'平日（サンプル）',events:[
+      ev('睡眠',1410,420,7,-1),ev('朝の支度',420,480,6,0),ev('作画',480,720,0,10),
+      ev('昼休み',720,780,5,0),ev('Web制作',780,1020,2,10),ev('休憩・散歩',1020,1050,5,0),
+      ev('夕食',1080,1140,3,-1),ev('SNS発信',1140,1200,4,5),ev('自由時間',1200,1380,1,-1)]},
+    {id:h,name:'休日（サンプル）',events:[
+      ev('睡眠',60,540,7,-1),ev('朝食',540,600,6,-1),ev('趣味の制作',600,780,0,-1),
+      ev('外出',840,1080,2,15),ev('夕食',1110,1170,3,-1),ev('自由時間',1200,1440,1,-1)]}],
+    days:[h,w,w,w,w,w,h],override:null};
+}
+let data;
+try{data=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){data=null}
+if(!data||!Array.isArray(data.sets)||!data.sets.length)data=sample();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){} $('#backup').value=JSON.stringify(data)};
+const setById=id=>data.sets.find(s=>s.id===id)||data.sets[0];
+function todaySet(d=new Date()){
+  if(data.override&&data.override.date===todayStr(d))return setById(data.override.setId);
+  return setById(data.days[d.getDay()]);
+}
+let viewId=todaySet().id;
+let ui={grip:'hover',round:true};try{Object.assign(ui,JSON.parse(localStorage.getItem(KEY+'.ui')||'{}'))}catch(e){}
+const saveUi=()=>{try{localStorage.setItem(KEY+'.ui',JSON.stringify(ui))}catch(e){}};
+const LOOKS=[['dot','白ドット'],['pill','白ピル'],['knob','外周ノブ'],['line','細い白線'],['hover','触れた時だけ'],['none','なし']];
+function renderLooks(){
+  // 見本: 小さな帯1本につまみを描く
+  const mini=k=>{const sv=(x,y)=>`${x} ${y}`;const c={dot:`<circle cx="22" cy="20" r="4" fill="#fff" stroke="rgba(0,0,0,.28)"/><circle cx="78" cy="20" r="4" fill="#fff" stroke="rgba(0,0,0,.28)"/>`,
+    pill:`<line x1="22" y1="12" x2="22" y2="28" stroke="rgba(0,0,0,.22)" stroke-width="7" stroke-linecap="round"/><line x1="22" y1="12" x2="22" y2="28" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><line x1="78" y1="12" x2="78" y2="28" stroke="rgba(0,0,0,.22)" stroke-width="7" stroke-linecap="round"/><line x1="78" y1="12" x2="78" y2="28" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>`,
+    knob:`<circle cx="14" cy="6" r="5" fill="var(--panel)" stroke="#7fb0ea" stroke-width="2.5"/><circle cx="86" cy="6" r="5" fill="var(--panel)" stroke="#7fb0ea" stroke-width="2.5"/>`,
+    line:`<line x1="22" y1="11" x2="22" y2="29" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/><line x1="78" y1="11" x2="78" y2="29" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/>`,
+    hover:`<circle cx="22" cy="20" r="4" fill="#fff" stroke="rgba(0,0,0,.28)" opacity=".35"/><circle cx="78" cy="20" r="4" fill="#fff" stroke="rgba(0,0,0,.28)" opacity=".35"/>`,none:''}[k];
+    return `<svg viewBox="0 0 100 40" aria-hidden="true"><rect x="14" y="6" width="72" height="28" rx="${ui.round?7:0}" fill="#7fb0ea"/>${c}</svg>`};
+  $('#looks').innerHTML=LOOKS.map(([k,n])=>`<button class="look" type="button" data-k="${k}" aria-pressed="${ui.grip===k}">${mini(k)}${n}</button>`).join('');
+  $('#roundChk').checked=!!ui.round;
+  $('#dial').classList.toggle('g-hover',ui.grip==='hover');
+}
+
+/* ---------- dial ---------- */
+const C=320,RO=250,RI=150,NS='http://www.w3.org/2000/svg';
+const ang=m=>m/1440*Math.PI*2-Math.PI/2;
+const pt=(r,m)=>[C+r*Math.cos(ang(m)),C+r*Math.sin(ang(m))];
+// 角丸の扇形（rc=角の半径px）
+function rarc(r1,r2,m1,span,rc){
+  span=Math.min(span,1439.9);
+  const mo=rc/(2*Math.PI*r2)*1440,mi=rc/(2*Math.PI*r1)*1440;
+  if(rc<=0||span<mi*2.2||r2-r1<rc*2.2)return arc(r1,r2,m1,span);
+  const m2=m1+span,lg=span>720?1:0,P=(r,m)=>pt(r,m).join(' ');
+  return `M${P(r2-rc,m1)}Q${P(r2,m1)} ${P(r2,m1+mo)}A${r2} ${r2} 0 ${lg} 1 ${P(r2,m2-mo)}Q${P(r2,m2)} ${P(r2-rc,m2)}`+
+    `L${P(r1+rc,m2)}Q${P(r1,m2)} ${P(r1,m2-mi)}A${r1} ${r1} 0 ${lg} 0 ${P(r1,m1+mi)}Q${P(r1,m1)} ${P(r1+rc,m1)}Z`;
+}
+// つまみ（pattern: dot / pill / knob / line / hover / none）
+function grips(e){
+  const st=ui.grip,d=dur(e);if(st==='none'||d<30)return '';
+  const mid=(RI+RO)/2,off=9/(2*Math.PI*mid)*1440;let g='';
+  [['start',e.start],['end',e.start+d]].forEach(([edge,m])=>{
+    const inner=edge==='start'?m+off:m-off,at=`data-id="${e.id}" data-edge="${edge}"`;
+    if(st==='dot'||st==='hover'){const [x,y]=pt(mid,inner);
+      g+=`<circle class="hdl" ${at} cx="${x}" cy="${y}" r="5" fill="#fff" stroke="rgba(0,0,0,.28)" stroke-width="1"/>`}
+    else if(st==='pill'){const [a,b]=pt(mid-11,inner),[c,dd]=pt(mid+11,inner);
+      g+=`<line class="hdl" ${at} x1="${a}" y1="${b}" x2="${c}" y2="${dd}" stroke="rgba(0,0,0,.22)" stroke-width="8" stroke-linecap="round"/>`+
+         `<line class="hdl" ${at} x1="${a}" y1="${b}" x2="${c}" y2="${dd}" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>`}
+    else if(st==='knob'){const [x,y]=pt(RO,m);
+      g+=`<circle class="hdl" ${at} cx="${x}" cy="${y}" r="6.5" fill="var(--panel)" stroke="${e.color}" stroke-width="3"/>`}
+    else if(st==='line'){const [a,b]=pt(RI+16,inner),[c,dd]=pt(RO-16,inner);
+      g+=`<line class="hdl" ${at} x1="${a}" y1="${b}" x2="${c}" y2="${dd}" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/>`}
+  });
+  return g;
+}
+function arc(r1,r2,m1,span){
+  span=Math.min(span,1439.9);const m2=m1+span,lg=span>720?1:0;
+  const [a,b]=pt(r2,m1),[c,d]=pt(r2,m2),[e,f]=pt(r1,m2),[g,h]=pt(r1,m1);
+  return `M${a} ${b}A${r2} ${r2} 0 ${lg} 1 ${c} ${d}L${e} ${f}A${r1} ${r1} 0 ${lg} 0 ${g} ${h}Z`;
+}
+function drawDial(){
+  const set=setById(viewId);let s='';
+  s+=`<circle cx="${C}" cy="${C}" r="${RO+18}" fill="var(--panel)" stroke="var(--line)"/>`;
+  s+=`<circle cx="${C}" cy="${C}" r="${RO}" fill="var(--face)" stroke="var(--line)"/>`;
+  for(let i=0;i<96;i++)s+=`<path class="slot" data-m="${i*15}" d="${arc(RI,RO,i*15,15)}"><title>${fmt(i*15)}</title></path>`;
+  const cl=clashIds(set);
+  set.events.forEach(e=>{
+    const on=drag&&drag.id===e.id;
+    s+=`<g class="evg${on?' on':''}"><path class="ev${cl.has(e.id)?' clash':''}${on?' active':''}" data-id="${e.id}" fill="${e.color}" d="${ui.round?rarc(RI+1.5,RO-1.5,e.start+.35,dur(e)-.7,9):arc(RI,RO,e.start,dur(e))}"><title>${esc(e.title)} ${fmt(e.start)}–${fmt(e.end)}</title></path>`;
+    s+=`${grips(e)}</g>`;
+  });
+  if(drag&&drag.mode==='create'){const st=drag.a<=drag.b?drag.a:drag.b,d=Math.abs(drag.b-drag.a)+15;
+    s+=`<path d="${arc(RI,RO,((st%1440)+1440)%1440,d)}" fill="var(--accent)" opacity=".55" pointer-events="none"/>`}
+  set.events.forEach(e=>{
+    const d=dur(e);if(d<45)return;
+    const [x,y]=pt((RI+RO)/2,e.start+d/2);
+    const max=d>=150?10:d>=90?6:d>=60?4:3;
+    const t=e.title.length>max?e.title.slice(0,max-1)+'…':e.title;
+    s+=`<text class="evlabel" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${esc(t)}</text>`;
+  });
+  for(let i=0;i<96;i++){
+    const major=i%4===0,six=i%24===0;
+    const [a,b]=pt(RO,i*15),[c,d]=pt(RO+(six?16:major?10:5),i*15);
+    s+=`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${major?'var(--ink)':'var(--muted)'}" stroke-width="${six?2.5:major?1.5:1}"/>`;
+  }
+  for(let h=0;h<24;h++){const [x,y]=pt(RO+34,h*60);
+    s+=`<text class="hnum${h%6===0?' major':''}" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${h}</text>`}
+  s+=`<circle cx="${C}" cy="${C}" r="${RI}" fill="var(--panel)" stroke="var(--line)"/>`;
+  s+=`<path id="remain" fill="var(--accent)" d=""/>`;
+  s+=`<g id="hand"><line x1="${C}" y1="${C}" x2="${C}" y2="${C-RO-12}" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="${C}" cy="${C-RO-12}" r="6" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/></g>`;
+  s+=`<circle cx="${C}" cy="${C}" r="${RI-4}" fill="var(--panel)"/>`;
+  s+=`<text id="cClock" class="clock" x="${C}" y="${C-62}" text-anchor="middle" font-size="30"></text>`;
+  s+=`<text id="cNow" class="sub" x="${C}" y="${C-24}" text-anchor="middle" font-size="16" font-weight="700" style="fill:var(--ink)"></text>`;
+  s+=`<text id="cCd" class="cd" x="${C}" y="${C+22}" text-anchor="middle" font-size="40"></text>`;
+  s+=`<text id="cNext" class="sub" x="${C}" y="${C+60}" text-anchor="middle" font-size="14"></text>`;
+  s+=`<text id="cNext2" class="sub" x="${C}" y="${C+82}" text-anchor="middle" font-size="14"></text>`;
+  $('#dial').innerHTML=s;
+  const pn=$('#previewNote'),ts=todaySet();
+  const wd=setById(data.days[new Date().getDay()]);
+  if(ts.id!==wd.id){pn.hidden=false;pn.innerHTML=`今日は「${esc(ts.name)}」を使用中（曜日の割り当ては「${esc(wd.name)}」）<button class="btn" type="button" id="backToday">曜日どおりに戻す</button>`;
+    $('#backToday').onclick=()=>useSet(wd.id)}
+  else pn.hidden=true;
+  tick(true);
+}
+/* ---------- drag: move / resize / create ---------- */
+let drag=null;
+const norm=m=>((m%1440)+1440)%1440;
+const normEnd=m=>norm(m)||1440;
+const cdiff=(a,b)=>{let d=norm(a-b);return d>720?d-1440:d};
+function ptrMin(ev){const svg=$('#dial'),p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;
+  const q=p.matrixTransform(svg.getScreenCTM().inverse());
+  return {m:norm((Math.atan2(q.y-C,q.x-C)+Math.PI/2)/(2*Math.PI)*1440),r:Math.hypot(q.x-C,q.y-C)}}
+$('#dial').addEventListener('pointerdown',ev=>{
+  const t=ev.target,set=setById(viewId),{m}=ptrMin(ev);
+  if(t.classList.contains('ev')||t.classList.contains('hdl')){
+    const e=set.events.find(x=>x.id===t.dataset.id),d=dur(e),edge=Math.min(ev.pointerType==='touch'?24:12,d/3);
+    const fromS=norm(m-e.start),mode=t.dataset.edge||(fromS<edge?'start':fromS>d-edge?'end':'move');
+    drag={mode,id:e.id,prev:m,acc:0,o:{start:e.start,end:e.end},before:snap(set),x:ev.clientX,y:ev.clientY,moved:false};
+  }else if(t.classList.contains('slot')){
+    const a=+t.dataset.m;drag={mode:'create',a,b:a,prev:m,acc:0,x:ev.clientX,y:ev.clientY,moved:false};
+  }else return;
+  $('#dial').setPointerCapture(ev.pointerId);$('#dial').classList.add('dragging');ev.preventDefault();
+  if(drag.id)drawDial(); // 触れた予定のつまみを表示
+});
+$('#dial').addEventListener('pointermove',ev=>{
+  if(!drag)return;const {m}=ptrMin(ev);
+  drag.acc+=cdiff(m,drag.prev);drag.prev=m;
+  if(!drag.moved&&Math.hypot(ev.clientX-drag.x,ev.clientY-drag.y)<6)return;
+  drag.moved=true;const q=Math.round(drag.acc/15)*15;
+  if(drag.mode==='create'){drag.b=drag.a+Math.max(-1425,Math.min(1425,q));drawDial();showDrag(norm(Math.min(drag.a,drag.b)),Math.abs(drag.b-drag.a)+15);return}
+  const e=setById(viewId).events.find(x=>x.id===drag.id),od=norm(drag.o.end-drag.o.start)||1440;
+  if(drag.mode==='move'){e.start=norm(drag.o.start+q);e.end=normEnd(e.start+od)}
+  else if(drag.mode==='end'){const nd=Math.max(15,Math.min(1425,od+q));e.end=normEnd(e.start+nd)}
+  else{const nd=Math.max(15,Math.min(1425,od-q));e.start=norm(drag.o.start+(od-nd));}
+  drawDial();showDrag(e.start,dur(e),e.title);
+});
+function endDrag(ev,cancel){
+  if(!drag)return;const d=drag;drag=null;$('#dial').classList.remove('dragging');
+  const set=setById(viewId);
+  if(cancel){if(d.before)set.events=d.before;drawDial();return}
+  if(!d.moved){ if(d.mode==='create')openQuick(d.a,normEnd(d.a+60)); else openEditor(set.events.find(x=>x.id===d.id)); drawDial(); return}
+  if(d.mode==='create'){const st=norm(Math.min(d.a,d.b));openQuick(st,normEnd(st+Math.abs(d.b-d.a)+15));drawDial();return}
+  commitChange(set.events.find(x=>x.id===d.id),d.before);
+}
+$('#dial').addEventListener('pointerup',ev=>endDrag(ev,false));
+$('#dial').addEventListener('pointercancel',ev=>endDrag(ev,true));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag)endDrag(null,true)});
+function showDrag(st,d,title){
+  $('#cNow').textContent=title||'新しい予定';$('#cCd').textContent=fmt(st)+'–'+fmt(normEnd(st+d));
+  $('#cNext').textContent=(d>=60?Math.floor(d/60)+'時間':'')+(d%60?d%60+'分':'');$('#cNext2').textContent='';
+}
+
+/* ---------- quick entry: なぞった後「何の予定ですか？」 ---------- */
+let quick=null;
+const durTxt=d=>(d>=60?Math.floor(d/60)+'時間':'')+(d%60?d%60+'分':'');
+function templates(){const map=new Map();
+  data.sets.forEach(st=>st.events.forEach(e=>{const t=map.get(e.title)||{title:e.title,color:e.color,lead:e.lead,n:0};t.n++;map.set(e.title,t)}));
+  return [...map.values()].sort((a,b)=>b.n-a.n).slice(0,10)}
+function showQuick(){const d=norm(quick.en-quick.st)||1440;$('#qTime').textContent=`${fmt(quick.st)}–${fmt(quick.en)}（${durTxt(d)}）`}
+function openQuick(st,en){quick={st,en};showQuick();$('#qTitle').value='';
+  $('#qChips').innerHTML=templates().map((t,i)=>`<button class="qchip" type="button" data-i="${i}"><i style="background:${t.color}"></i>${esc(t.title)}</button>`).join('');
+  $('#quick').hidden=false;setTimeout(()=>$('#qTitle').focus(),30)}
+const closeQuick=()=>{$('#quick').hidden=true;quick=null};
+function saveQuick(title,tpl){
+  const set=setById(viewId),before=snap(set);
+  const target={id:uid(),title,start:quick.st,end:quick.en,color:tpl?tpl.color:COLORS[set.events.length%COLORS.length],lead:tpl?tpl.lead:5};
+  set.events.push(target);closeQuick();commitChange(target,before);
+}
+$('#qChips').addEventListener('click',e=>{const b=e.target.closest('.qchip');if(!b)return;const t=templates()[+b.dataset.i];saveQuick(t.title,t)});
+$('#qForm').onsubmit=e=>{e.preventDefault();const v=$('#qTitle').value.trim();if(!v){$('#qTitle').focus();$('#qTitle').placeholder='名前を入れるか、下の候補を選んでください';return}
+  saveQuick(v,templates().find(t=>t.title===v))};
+$('#qPlus').onclick=()=>{const d=norm(quick.en-quick.st)||1440;if(d<1425){quick.en=normEnd(quick.en+15);showQuick()}};
+$('#qMinus').onclick=()=>{const d=norm(quick.en-quick.st)||1440;if(d>15){quick.en=normEnd(quick.en-15);showQuick()}};
+$('#qCancel').onclick=closeQuick;
+$('#quick').addEventListener('click',e=>{if(e.target.id==='quick')closeQuick()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&quick)closeQuick()});
+$('#qMore').onclick=()=>{const {st,en}=quick,v=$('#qTitle').value;closeQuick();openEditor(null,st,en);$('#fTitle').value=v};
+
+/* ---------- overlap handling ---------- */
+const snap=set=>set.events.map(e=>({...e}));
+const slotsOf=e=>{const a=[];for(let i=0;i<dur(e)/15;i++)a.push(norm(e.start+i*15));return a};
+const overlaps=(a,b)=>{const s=new Set(slotsOf(a));return slotsOf(b).some(m=>s.has(m))};
+function clashIds(set){const ids=new Set(),ev=set.events;
+  for(let i=0;i<ev.length;i++)for(let j=i+1;j<ev.length;j++)if(overlaps(ev[i],ev[j])){ids.add(ev[i].id);ids.add(ev[j].id)}
+  return ids}
+let pending=null;
+function commitChange(target,before){
+  const set=setById(viewId);save();renderAll();
+  const others=set.events.filter(x=>x!==target&&overlaps(x,target));
+  if(!others.length)return;
+  pending={target,before,set};
+  $('#rsMsg').textContent=`「${target.title}」(${fmt(target.start)}–${fmt(target.end)}) が ${others.map(x=>`「${x.title}」`).join('、')} と重なっています。どうしますか？`;
+  $('#resolver').hidden=false;$('#resolver .choice').focus();
+}
+function trimAround(set,t){
+  const ts=new Set(slotsOf(t)),add=[];
+  set.events=set.events.filter(x=>{
+    if(x===t||!overlaps(x,t))return true;
+    const runs=[];let cur=null;
+    slotsOf(x).forEach(m=>{if(ts.has(m)){cur=null;return}if(!cur){cur={s:m,n:0};runs.push(cur)}cur.n++});
+    if(!runs.length)return false;
+    x.start=runs[0].s;x.end=normEnd(runs[0].s+runs[0].n*15);
+    runs.slice(1).forEach(rn=>add.push({...x,id:uid(),start:rn.s,end:normEnd(rn.s+rn.n*15)}));
+    return true});
+  set.events.push(...add);
+}
+function shiftAfter(set,t){
+  const td=dur(t);
+  // 開始前から食い込んでいる予定は、この予定の開始で終わらせる
+  set.events.forEach(x=>{if(x===t)return;const rel=norm(x.start-t.start);
+    if(rel>0&&rel+dur(x)>1440)x.end=normEnd(t.start)});
+  let cursor=td;
+  set.events.filter(x=>x!==t).map(x=>({x,rel:norm(x.start-t.start)})).sort((a,b)=>a.rel-b.rel).forEach(({x,rel})=>{
+    const d=dur(x);
+    if(rel<cursor){x.start=norm(t.start+cursor);x.end=normEnd(x.start+d);cursor+=d}
+    else cursor=Math.max(cursor,rel+d);
+  });
+  set.events=set.events.filter(x=>dur(x)>0);
+  if(clashIds(set).size)toast('1日に収まりきらないため、一部の予定が重なったままです');
+}
+$('#resolver').addEventListener('click',e=>{
+  const b=e.target.closest('.choice');if(!b||!pending)return;
+  const {target,before,set}=pending,act=b.dataset.act;pending=null;$('#resolver').hidden=true;
+  if(act==='undo'){set.events=before}
+  else if(act==='trim')trimAround(set,target);
+  else if(act==='shift')shiftAfter(set,target);
+  save();renderAll();
+  toast(act==='undo'?'変更を取り消しました':act==='keep'?'重ねたまま保存しました':'重なりを解消しました');
+});
+
+/* ---------- countdown & alerts ---------- */
+const hms=sec=>{sec=Math.max(0,Math.ceil(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return (h?h+':'+pad(m):String(m))+':'+pad(s)};
+let lastMin=null;const fired=new Set();
+function tick(){
+  const now=new Date(),nm=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+  const hand=$('#hand');if(!hand)return;
+  const dragging=!!drag;
+  hand.setAttribute('transform',`rotate(${nm/1440*360} ${C} ${C})`);
+  $('#cClock').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  const set=todaySet(now),showing=viewId===set.id;
+  const cur=set.events.find(e=>(((nm-e.start)%1440)+1440)%1440<dur(e));
+  let next=null,nd=1e9;
+  set.events.forEach(e=>{if(e===cur)return;let d=(((e.start-nm)%1440)+1440)%1440;if(d>0&&d<nd){nd=d;next=e}});
+  if(!dragging){
+  if(cur){const left=dur(cur)-((((nm-cur.start)%1440)+1440)%1440);
+    $('#cNow').textContent=cur.title+' 残り';$('#cCd').textContent=hms(left*60);
+    $('#remain').setAttribute('d',showing?arc(RO+2,RO+9,nm,left):'');
+  }else{$('#cNow').textContent=next?'次の予定まで':'予定なし';$('#cCd').textContent=next?hms(nd*60):'--:--';$('#remain').setAttribute('d','')}
+  $('#cNext').textContent=next?`次: ${fmt(next.start)} ${next.title}`:'';
+  $('#cNext2').textContent=next&&cur?`あと ${hms(nd*60)}`:'';
+  }
+  // alerts: fire any trigger passed since the last tick
+  if(lastMin!==null){
+    const passed=m=>lastMin<=nm?(m>lastMin&&m<=nm):(m>lastMin||m<=nm);
+    set.events.forEach(e=>{if(e.lead<0)return;
+      const trig=[[e.start,'start']];if(e.lead>0)trig.push([(e.start-e.lead+1440)%1440,'pre']);
+      trig.forEach(([m,kind])=>{const k=todayStr(now)+e.id+kind;
+        if(passed(m)&&!fired.has(k)){fired.add(k);alertFor(e,kind)}});
+    });
+  }
+  lastMin=nm;
+  if(zoomW<1440)renderZoom(now,nm,set,cur,next,nd);
+}
+
+/* ---------- zoom: 現在時刻を真上に固定した分刻みダイヤル ---------- */
+let zoomW=1440;try{zoomW=+localStorage.getItem(KEY+'.range')||1440}catch(e){}
+const ZRI=168,ZRO=250;
+function renderZoom(now,nm,set,cur,next,nd){
+  const fut=zoomW,past=Math.round(zoomW*.15),T=(fut+past)/0.94; // 残り6%は切れ目
+  const za=rel=>rel/T*Math.PI*2-Math.PI/2;
+  const zp=(r,rel)=>[C+r*Math.cos(za(rel)),C+r*Math.sin(za(rel))];
+  const zarc=(r1,r2,a,b)=>{const lg=(b-a)/T>.5?1:0,[x1,y1]=zp(r2,a),[x2,y2]=zp(r2,b),[x3,y3]=zp(r1,b),[x4,y4]=zp(r1,a);
+    return `M${x1} ${y1}A${r2} ${r2} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${r1} ${r1} 0 ${lg} 0 ${x4} ${y4}Z`};
+  let s=`<circle cx="${C}" cy="${C}" r="${ZRO+20}" fill="var(--panel)" stroke="var(--line)"/>`;
+  s+=`<path d="${zarc(ZRI,ZRO,-past,fut)}" fill="var(--face)" stroke="var(--line)"/>`;
+  // events (cyclic, clipped to window)
+  set.events.forEach(e=>{
+    let rel=(((e.start-nm)%1440)+1440)%1440;
+    [rel-1440,rel].forEach(a=>{
+      const b=a+dur(e),a2=Math.max(a,-past),b2=Math.min(b,fut);if(b2<=a2)return;
+      s+=`<path class="ev" data-id="${e.id}" fill="${e.color}" d="${zarc(ZRI,ZRO,a2,b2)}"><title>${esc(e.title)} ${fmt(e.start)}–${fmt(e.end)}</title></path>`;
+      const span=(b2-a2)/T;if(span<.045)return;
+      const [x,y]=zp((ZRI+ZRO)/2,(a2+b2)/2),max=span>.2?10:span>.1?6:4;
+      const t=e.title.length>max?e.title.slice(0,max-1)+'…':e.title;
+      s+=`<text class="zlabel" x="${x}" y="${y-(span>.08?8:0)}" text-anchor="middle" dominant-baseline="central">${esc(t)}</text>`;
+      if(span>.08)s+=`<text class="zsub" x="${x}" y="${y+11}" text-anchor="middle" dominant-baseline="central">${fmt(e.start)}–${fmt(e.end)}</text>`;
+    });
+  });
+  // past dimming
+  s+=`<path d="${zarc(ZRI,ZRO,-past,0)}" fill="var(--bg)" opacity=".55" pointer-events="none"/>`;
+  // minute ticks & labels
+  const step=fut<=60?5:15;
+  for(let m=Math.ceil(nm-past);m<=Math.floor(nm+fut);m++){
+    const rel=m-nm,mm=((m%1440)+1440)%1440,q=mm%15===0,f=mm%5===0;
+    const [a,b]=zp(ZRO,rel),[c,d]=zp(ZRO+(q?16:f?10:5),rel);
+    s+=`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${q?'var(--ink)':'var(--muted)'}" stroke-width="${q?2:f?1.3:.8}"/>`;
+    if(mm%step===0&&rel>-past+2&&rel<fut-2){const [x,y]=zp(ZRO+36,rel);
+      s+=`<text class="zt${q?' q':''}" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${fmt(mm)}</text>`}
+  }
+  // now marker (fixed at top)
+  s+=`<line x1="${C}" y1="${C-ZRI+4}" x2="${C}" y2="${C-ZRO-22}" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>`;
+  s+=`<path d="M${C-10} ${C-ZRO-34}L${C+10} ${C-ZRO-34}L${C} ${C-ZRO-20}Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.5"/>`;
+  // center
+  s+=`<circle cx="${C}" cy="${C}" r="${ZRI-6}" fill="var(--panel)" stroke="var(--line)"/>`;
+  s+=`<text class="clock" x="${C}" y="${C-78}" text-anchor="middle" font-size="34">${pad(now.getHours())}:${pad(now.getMinutes())}<tspan font-size="22" style="fill:var(--muted)">:${pad(now.getSeconds())}</tspan></text>`;
+  if(cur){const left=dur(cur)-((((nm-cur.start)%1440)+1440)%1440);
+    s+=`<text class="sub" x="${C}" y="${C-36}" text-anchor="middle" font-size="18" font-weight="700" style="fill:var(--ink)">${esc(cur.title)} 残り</text>`;
+    s+=`<text class="cd" x="${C}" y="${C+14}" text-anchor="middle" font-size="50">${hms(left*60)}</text>`;
+  }else{
+    s+=`<text class="sub" x="${C}" y="${C-36}" text-anchor="middle" font-size="18" font-weight="700" style="fill:var(--ink)">${next?'次の予定まで':'予定なし'}</text>`;
+    s+=`<text class="cd" x="${C}" y="${C+14}" text-anchor="middle" font-size="50">${next?hms(nd*60):'--:--'}</text>`;
+  }
+  if(next){s+=`<text class="sub" x="${C}" y="${C+58}" text-anchor="middle" font-size="16">次: ${fmt(next.start)} ${esc(next.title)}</text>`;
+    if(cur)s+=`<text class="sub" x="${C}" y="${C+82}" text-anchor="middle" font-size="16">あと ${hms(nd*60)}</text>`}
+  $('#zoom').innerHTML=s;
+}
+$('#zoom').addEventListener('click',ev=>{const t=ev.target;if(!t.classList.contains('ev'))return;
+  const set=todaySet();viewId=set.id;renderPanel();openEditor(set.events.find(e=>e.id===t.dataset.id))});
+function syncZoomBtns(){
+  document.querySelectorAll('#zoomCtl button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.w===zoomW));
+  const full=zoomW===1440;$('#dial').toggleAttribute('hidden',!full);$('#zoom').toggleAttribute('hidden',full);
+  $('#dialNote').textContent=full?'空いている所をなぞって長さを決めると、何の予定かを聞かれます。予定はドラッグで移動、端をつかむと伸び縮み（15分単位）。タップで詳細編集。'
+    :'今の時刻を真上にして、この先の予定を分刻みで表示しています。予定をタップすると編集できます。追加や移動は「24時間」に戻して行ってください。';
+}
+$('#zoomCtl').addEventListener('click',e=>{const b=e.target.closest('[data-w]');if(!b)return;zoomW=+b.dataset.w;
+  try{localStorage.setItem(KEY+'.range',zoomW)}catch(err){}syncZoomBtns();tick()});
+syncZoomBtns();
+setInterval(tick,1000);
+
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,8000)}
+let flashT;
+function alertFor(e,kind){
+  const msg=kind==='pre'?`${e.lead}分後に「${e.title}」が始まります（${fmt(e.start)}）`:`「${e.title}」の時間です（${fmt(e.start)}–${fmt(e.end)}）`;
+  toast(msg);
+  try{if('Notification' in window&&Notification.permission==='granted')new Notification('24h DIAL',{body:msg,tag:e.id+kind})}catch(err){}
+  const orig='24h ダイヤル';let i=0;clearInterval(flashT);
+  flashT=setInterval(()=>{document.title=i++%2?orig:'● '+e.title;if(i>12){clearInterval(flashT);document.title=orig}},1000);
+}
+function notifState(){
+  const st=$('#notifStatus'),b=$('#notifBtn');
+  if(!('Notification' in window)){st.textContent='この表示環境ではデスクトップ通知が使えません。代わりに画面下のお知らせとタブ名の点滅で知らせます。';b.hidden=true;return}
+  const p=Notification.permission;
+  if(p==='granted'){st.textContent='デスクトップ通知は有効です。予定ごとの「アラート」設定に従って知らせます。';b.hidden=true}
+  else if(p==='denied'){st.textContent='通知がブロックされています。ブラウザのサイト設定で許可するか、画面下のお知らせで代用してください。';b.hidden=true}
+  else{st.textContent='まだ通知の許可が出ていません。上の「デスクトップ通知を有効にする」を押してください。許可されない場合は画面下のお知らせで知らせます。';b.hidden=false}
+}
+$('#notifBtn').onclick=async()=>{
+  try{await Notification.requestPermission()}catch(e){}
+  notifState();
+  if(Notification.permission!=='granted')toast('通知を許可できませんでした。画面内のお知らせで代わりに知らせます。');
+  else toast('デスクトップ通知を有効にしました');
+};
+
+/* ---------- panel ---------- */
+function renderPanel(){
+  const opts=data.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  $('#setSel').innerHTML=opts;$('#setSel').value=viewId;
+  const set=setById(viewId);
+  const list=[...set.events].sort((a,b)=>a.start-b.start);
+  const leadTxt=l=>l<0?'':l===0?'開始時':l+'分前';
+  const cl=clashIds(set);
+  $('#evlist').innerHTML=list.length?list.map(e=>`<li><button type="button" data-id="${e.id}"><span class="dot" style="background:${e.color}"></span><span class="t">${fmt(e.start)}–${fmt(e.end)}</span><span class="n">${esc(e.title)}${cl.has(e.id)?'<span class="chip">重なり</span>':''}</span><span class="a">${leadTxt(e.lead)}</span></button></li>`).join(''):'<li class="note">予定がありません。「＋ 予定を追加」かリングをタップして追加してください。</li>';
+  $('#week').innerHTML=DAYS.map((d,i)=>`<label>${d}<select data-day="${i}">${opts}</select></label>`).join('');
+  $('#week').querySelectorAll('select').forEach(s=>s.value=setById(data.days[s.dataset.day]).id);
+  const ov=data.override&&data.override.date===todayStr(new Date())?data.override.setId:'';
+  $('#delSet').textContent='削除';$('#delSet').classList.remove('warn');delArm=false;
+  $('#backup').value=JSON.stringify(data);
+}
+function renderAll(){renderPanel();renderLooks();drawDial()}
+$('#looks').addEventListener('click',e=>{const b=e.target.closest('.look');if(!b)return;ui.grip=b.dataset.k;saveUi();renderLooks();drawDial()});
+$('#roundChk').onchange=e=>{ui.round=e.target.checked;saveUi();renderLooks();drawDial()};
+// 選んだ設定＝今日使う設定（ダイヤル・拡大表示・アラートすべて共通）
+function useSet(id){const wd=data.days[new Date().getDay()];
+  data.override=id===wd?null:{date:todayStr(new Date()),setId:id};viewId=id;save();renderAll()}
+$('#setSel').onchange=e=>useSet(e.target.value);
+$('#evlist').addEventListener('click',e=>{const b=e.target.closest('button[data-id]');if(b)openEditor(setById(viewId).events.find(x=>x.id===b.dataset.id))});
+$('#week').addEventListener('change',e=>{data.days[e.target.dataset.day]=e.target.value;save();viewId=todaySet().id;renderAll()});
+$('#newSet').onclick=()=>{const s={id:uid(),name:'新しい設定',events:[]};data.sets.push(s);useSet(s.id);startRename()};
+$('#dupSet').onclick=()=>{const o=setById(viewId);const s={id:uid(),name:o.name+'のコピー',events:o.events.map(e=>({...e,id:uid()}))};data.sets.push(s);useSet(s.id);toast('設定を複製しました')};
+function startRename(){$('#renameRow').hidden=false;$('#renameInput').value=setById(viewId).name;$('#renameInput').focus();$('#renameInput').select()}
+$('#renSet').onclick=startRename;
+$('#renameOk').onclick=()=>{const v=$('#renameInput').value.trim();if(v){setById(viewId).name=v;save()}$('#renameRow').hidden=true;renderAll()};
+$('#renameInput').onkeydown=e=>{if(e.key==='Enter')$('#renameOk').click()};
+let delArm=false;
+$('#delSet').onclick=()=>{
+  if(data.sets.length<2){toast('設定は最低1つ必要です');return}
+  if(!delArm){delArm=true;$('#delSet').textContent='もう一度押すと削除';$('#delSet').classList.add('warn');return}
+  const id=viewId;data.sets=data.sets.filter(s=>s.id!==id);const fb=data.sets[0].id;
+  data.days=data.days.map(d=>d===id?fb:d);if(data.override&&data.override.setId===id)data.override=null;
+  viewId=todaySet().id;save();$('#delSet').classList.remove('warn');renderAll();toast('設定を削除しました');
+};
+$('#copyBk').onclick=async()=>{const t=$('#backup');try{await navigator.clipboard.writeText(t.value);toast('コピーしました')}catch(e){t.focus();t.select();toast('選択しました。Ctrl+C でコピーしてください')}};
+$('#importBk').onclick=()=>{try{const d=JSON.parse($('#backup').value);if(!Array.isArray(d.sets)||!d.sets.length||!Array.isArray(d.days))throw 0;data=d;viewId=todaySet().id;save();renderAll();toast('読み込みました')}catch(e){toast('読み込めませんでした。書き出したデータをそのまま貼り付けてください')}};
+
+/* ---------- editor ---------- */
+let editing=null;
+const startOpts=[...Array(96)].map((_,i)=>`<option value="${i*15}">${fmt(i*15)}</option>`).join('');
+const endOpts=[...Array(96)].map((_,i)=>`<option value="${(i+1)*15}">${fmt((i+1)*15)}</option>`).join('');
+$('#fStart').innerHTML=startOpts;$('#fEnd').innerHTML=endOpts;
+$('#fColors').innerHTML=COLORS.map((c,i)=>`<input type="radio" name="fColor" id="fc${i}" value="${c}" style="background:${c}" aria-label="色${i+1}">`).join('');
+function openEditor(ev,slot,endSlot){
+  editing=ev||null;
+  $('#edTitle').textContent=ev?'予定を編集':'予定を追加';
+  $('#fTitle').value=ev?ev.title:'';
+  const s=ev?ev.start:(slot??Math.ceil((new Date().getHours()*60+new Date().getMinutes())/15)*15%1440);
+  $('#fStart').value=s;$('#fEnd').value=ev?(ev.end||1440):(endSlot??Math.min(s+60,1440));
+  $('#fLead').value=ev?ev.lead:5;
+  const col=ev?ev.color:COLORS[setById(viewId).events.length%COLORS.length];
+  ($('#fColors').querySelector(`input[value="${col}"]`)||$('#fc0')).checked=true;
+  $('#fDel').hidden=!ev;$('#fDel').textContent='削除';$('#fDel').classList.remove('warn');
+  $('#fErr').textContent='';$('#editor').hidden=false;$('#fTitle').focus();
+}
+const closeEditor=()=>{$('#editor').hidden=true;editing=null};
+$('#fCancel').onclick=closeEditor;
+$('#editor').addEventListener('click',e=>{if(e.target.id==='editor')closeEditor()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#editor').hidden)closeEditor()});
+$('#addEv').onclick=()=>openEditor(null);
+$('#fDel').onclick=()=>{
+  const b=$('#fDel');if(!b.classList.contains('warn')){b.classList.add('warn');b.textContent='もう一度押すと削除';return}
+  const set=setById(viewId);set.events=set.events.filter(e=>e!==editing);save();closeEditor();renderAll();
+};
+$('#evForm').onsubmit=e=>{
+  e.preventDefault();
+  const title=$('#fTitle').value.trim(),start=+$('#fStart').value,end=+$('#fEnd').value;
+  if(!title){$('#fErr').textContent='名前を入れてください';return}
+  if(end%1440===start){$('#fErr').textContent='開始と終了が同じ時刻です。終了を変えてください';return}
+  const obj={title,start,end,lead:+$('#fLead').value,color:$('#fColors').querySelector('input:checked').value};
+  const set=setById(viewId),before=snap(set);let target;
+  if(editing){Object.assign(editing,obj);target=editing}else{target={id:uid(),...obj};set.events.push(target)}
+  closeEditor();commitChange(target,before);
+};
+
+/* ---------- focus mode ---------- */
+let wake=null;
+$('#focusBtn').onclick=async()=>{
+  const on=document.body.classList.toggle('focus');
+  $('#focusBtn').textContent=on?'通常表示に戻る':'拡大表示';
+
+  if(on){try{await document.documentElement.requestFullscreen?.()}catch(e){}
+    try{wake=await navigator.wakeLock?.request('screen')}catch(e){}}
+  else{try{if(document.fullscreenElement)await document.exitFullscreen()}catch(e){}
+    try{wake&&wake.release();wake=null}catch(e){}}
+};
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('focus')){document.body.classList.remove('focus');$('#focusBtn').textContent='拡大表示'}});
+
+// redraw when the day changes (weekday set may switch)
+let day=todayStr(new Date());
+setInterval(()=>{const d=todayStr(new Date());if(d!==day){day=d;fired.clear();if(viewId!==todaySet().id)viewId=todaySet().id;renderAll()}},30000);
+
+notifState();save();renderAll();
+})();
+</script>
+</body>
+</html>
